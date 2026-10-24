@@ -2,8 +2,9 @@ schema_version: "1.1"
 name: naui-baekseongi-pdf
 expected_outcome: |
   "나의 백성이" 악보(왼쪽 G키, 오른쪽 A키로 키업, 맨 위에 손글씨 송폼)에서 가사를 뽑아
-  송폼 Intro(8) - V1 - P.C - C - V2 - P.C - C*2 - (지워진 칸) - C - 기도 순서대로 펼친 txt.
+  송폼 Intro(8) - V1 - P.C - C - V2 - P.C - C*2 - C - 기도 순서대로 펼친 txt.
   V1/첫 P.C/첫 C는 왼쪽(G키), V2/두번째 P.C/이후 C는 오른쪽(A키) 가사를 쓰고,
-  2마디 = 1줄, 4마디마다 빈 줄. 코드명은 없음. 지워진 송폼 칸은 지어내지 않고 표시만 함.
+  2마디 = 1줄, 4마디마다 빈 줄. 코드명은 없음. 지워진 송폼 칸은 송폼 줄과 본문에서 모두 뺌.
+  4마디 묶음은 항상 2줄이며 띄어쓰기 자리에서 나눔.
 context:
   scaffold_script: place-files.sh

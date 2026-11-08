@@ -12,6 +12,7 @@ Claude Code 스킬 모음이다. 빌드, 린트, 테스트 설정은 없다. 스
   - `npx skills add <owner/repo@skill>`로 설치했고, 출처와 해시가 `skills-lock.json`에 기록된다.
   - 같은 내용이 `.claude/skills/`와 `.agents/skills/` 두 곳에 들어 있다.
   - 직접 고치지 말고 `npx skills update`로 갱신한다. 손으로 고치면 lock 파일의 해시와 어긋난다.
+  - `npx skills update`는 `.claude/skills/<이름>`을 `.agents/skills/<이름>`을 가리키는 심볼릭 링크로 바꾼다. 갱신한 뒤에는 링크를 지우고 `.agents/skills/<이름>`을 복사해 넣어 두 곳에 실제 파일이 있게 유지한다. 그다음 `npx skills check`로 최신인지 확인한다.
 - **이 저장소에서 만든 스킬**: `sheets-creator`, `youngabu-band-post`
   - `.claude/skills/`에만 있고 `skills-lock.json`에는 없다. 여기서 직접 고친다.
   - 새 스킬도 `.claude/skills/<이름>/`에 만든다.
@@ -25,6 +26,10 @@ Claude Code 스킬 모음이다. 빌드, 린트, 테스트 설정은 없다. 스
   - `youngabu-band-post/scripts/*`는 Pillow가 필요하다. heic 사진을 읽으려면 pillow-heif도 있어야 한다.
   - `sheets-creator/scripts/pdf_to_images.py`는 pypdfium2가 필요하다.
   - 테스트 코드는 없다. 고친 뒤에는 작업용 임시 폴더의 샘플 이미지로 직접 실행해서 확인한다.
+
+## sheets-creator 구조
+
+악보 이미지나 PDF에서 가사를 뽑아 예배 자막용 txt를 만든다. 출력 형식의 기준은 `references/example.txt`(사용자가 직접 정리한 세 곡짜리 콘티)다. `SKILL.md`의 규칙과 이 예시가 다르면 예시를 따른다. 규칙을 고칠 때도 예시와 어긋나지 않게 한다.
 
 ## youngabu-band-post 구조
 

@@ -28,6 +28,8 @@ Claude는 음원을 직접 들을 수 없다. 그래서 가사를 글자로 바�
 """
 import argparse
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -77,7 +79,16 @@ def transcribe(path, model_name):
             f"음성 인식 모델({model_name})을 불러오지 못했습니다: {e}\n"
             "모델은 huggingface.co에서 받습니다. 이 호스트가 막혀 있으면 환경의 네트워크 설정에 추가해야 합니다."
         )
-    segments, _ = model.transcribe(str(path), language="ko", beam_size=5)
+    audio = str(path)
+    if shutil.which("ffmpeg"):
+        # faster-whisper의 기본 디코더(PyAV)는 버전이 안 맞으면 실패한다. ffmpeg가 있으면 직접 16kHz 모노로 푼다.
+        import numpy as np
+        raw = subprocess.run(
+            ["ffmpeg", "-nostdin", "-loglevel", "error", "-i", str(path), "-f", "s16le", "-ac", "1", "-ar", "16000", "-"],
+            capture_output=True, check=True,
+        ).stdout
+        audio = np.frombuffer(raw, np.int16).astype(np.float32) / 32768.0
+    segments, _ = model.transcribe(audio, language="ko", beam_size=5)
     return "\n".join(s.text.strip() for s in segments if s.text.strip())
 
 

@@ -24,7 +24,9 @@ Claude Code 스킬 모음이다. 빌드, 린트, 테스트 설정은 없다. 스
 - **본문**: 규칙만 나열하지 말고, 그 규칙이 왜 필요한지(실제 사용자가 결과를 어떻게 쓰는지)를 적는다.
 - **스크립트**: 파이썬 단독 실행 스크립트이고, 사용법은 파일 맨 위 docstring에 있다. 인자 없이 실행하면 docstring을 출력한다.
   - `youngabu-band-post/scripts/`의 사진 스크립트는 Pillow가 필요하다. heic 사진을 읽으려면 pillow-heif도 있어야 한다.
-  - `youngabu-band-post/scripts/song_info.py`는 mutagen이 필요하다. `--transcribe`(노래 받아 적기)에는 faster-whisper가 필요하고, 모델은 huggingface.co에서 받는다. 이 환경의 기본 네트워크에서는 이 호스트가 막혀 있다.
+  - `youngabu-band-post/scripts/song_info.py`는 mutagen이 필요하다. `--transcribe`(노래 받아 적기)에는 faster-whisper와 ffmpeg가 필요하다. 모델은 `--model large-v3-turbo`를 쓴다.
+    - 모델은 처음 한 번 huggingface.co에서 받고, 파일은 us.aws.cdn.hf.co에서 내려온다. 이 환경에는 두 호스트를 허용해 두었다.
+    - xethub 호스트는 막혀 있으니 `HF_HUB_DISABLE_XET=1`을 붙여 받는다. 받은 뒤에는 `HF_HUB_OFFLINE=1`로 돌린다.
   - `sheets-creator/scripts/pdf_to_images.py`는 pypdfium2가 필요하다.
   - 테스트 코드는 없다. 고친 뒤에는 작업용 임시 폴더의 샘플 이미지로 직접 실행해서 확인한다.
 
@@ -43,7 +45,7 @@ Claude Code 스킬 모음이다. 빌드, 린트, 테스트 설정은 없다. 스
    - 사진은 고르기 전에 옷차림으로 아이 목록부터 만들고, 덜 나온 아이 사진을 먼저 고른다. 한 아이가 주인공인 사진은 2장까지다.
 4. **글 쓰기**: 말투와 섹션 구성은 `references/examples.md`(실제 밴드 글을 옮겨 적은 것)를 따른다.
    - 찬양 섹션은 그 주에 부른 곡의 가사로 매주 새로 쓴다. 곡은 가사 슬라이드 글자로 `references/songs/`(곡마다 가사 txt)에서 찾는다. 지난주와 겹치지 않게 `references/praise_log.md`를 보고 소절을 고르고, 글을 낸 뒤 한 줄을 더한다.
-   - 찬양 음원(mp3, m4a)을 받으면 `song_info.py`로 태그 가사를 뽑아 `references/songs/`에 txt로 넣는다.
+   - 찬양 음원(mp3, m4a)을 받으면 `song_info.py`로 가사를 뽑아 `references/songs/`에 txt로 넣는다. 단톡방에서 받은 파일은 태그가 비어 있고 업로드하면 한글 파일 이름도 `_`로 바뀌므로, 보통 `--transcribe`로 받아 적고 곡 제목은 사용자에게 묻는다.
 5. **결과 내기**: 결과물은 두 가지다.
    - 밴드에 바로 붙여 넣을 글: `📷`, `○○○` 같은 작업용 표시가 없어야 한다.
    - `package_for_band.py`로 만든 zip: 고른 사진을 섹션 순서대로 폴더에 나눠 담는다.

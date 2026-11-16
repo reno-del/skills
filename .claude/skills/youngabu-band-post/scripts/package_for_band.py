@@ -15,7 +15,7 @@
 - photos 안에 목록을 넣으면 그 사진들을 한 장으로 묶은 이미지(콜라주)가 그 자리에 들어간다.
   - 4장: 2×2 바둑판. 3장: 첫 사진을 위에 넓게, 나머지 둘을 아래에 나란히. 2장: 좌우로 나란히.
   - 칸 사이와 가장자리에 흰 줄을 넣는다. 칸 비율은 사진 방향을 따른다(모두 세로면 3:4, 모두 가로면 4:3, 섞이면 1:1).
-    그래서 세로 사진끼리, 가로 사진끼리 묶어야 잘리는 부분이 적다.
+    그래서 세로 사진끼리, 가로 사진끼리 묶어야 잘리는 부분이 적다. 섞여 있으면 경고를 띄운다.
   - 칸에 맞추느라 잘라 낼 때는 가로는 가운데를, 세로는 위에서 40% 지점을 기준으로 자른다.
     "132@0.8"처럼 @ 뒤에 0(맨 위)~1(맨 아래)을 적으면 세로 기준을 바꾼다. 아이들이 사진 아래쪽에 있을 때 쓴다.
 
@@ -88,6 +88,11 @@ def collage(src: Path, items) -> bytes:
         ims.append(ImageOps.exif_transpose(Image.open(find(src, stem))).convert("RGB"))
         anchors.append(float(a) if a else 0.4)
     n, g, W = len(ims), GAP, WIDTH
+    # 3장 묶음은 위 칸이 따로 잘리니 아래 두 장만 방향이 같으면 된다.
+    same = ims[1:] if n == 3 else ims
+    if len({im.height > im.width for im in same}) > 1:
+        names = "+".join(str(x).partition("@")[0] for x in items)
+        print(f"  경고: 묶음 {names}에 가로·세로 사진이 섞여 정사각형 칸으로 많이 잘립니다", file=sys.stderr)
     cw = (W - 3 * g) // 2  # 반 폭 칸
     if n == 2:
         ch = round(cw * ratio(ims))

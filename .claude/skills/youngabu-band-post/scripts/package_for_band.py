@@ -15,7 +15,7 @@
 - photos 안에 목록을 넣으면 그 사진들을 한 장으로 묶은 이미지(콜라주)가 그 자리에 들어간다.
   - 4장: 2×2 바둑판. 3장: 첫 사진을 위에 넓게, 나머지 둘을 아래에 나란히. 2장: 좌우로 나란히.
   - 칸 사이와 가장자리에 흰 줄을 넣는다. 칸 비율은 사진 방향을 따른다(모두 세로면 3:4, 모두 가로면 4:3, 섞이면 1:1).
-    그래서 세로 사진끼리, 가로 사진끼리 묶어야 잘리는 부분이 적다.
+    그래서 세로 사진끼리, 가로 사진끼리 묶어야 잘리는 부분이 적다. 섞여 있으면 경고를 띄운다.
   - 칸에 맞추느라 잘라 낼 때는 가로는 가운데를, 세로는 위에서 40% 지점을 기준으로 자른다.
     "132@0.8"처럼 @ 뒤에 0(맨 위)~1(맨 아래)을 적으면 세로 기준을 바꾼다. 아이들이 사진 아래쪽에 있을 때 쓴다.
 
@@ -31,6 +31,11 @@
   - JPEG 안의 EXIF 촬영 시각: 아이폰·아이패드는 파일 앱의 사진을 '사진' 앱에 저장해야 밴드에서 고를 수 있는데,
     '사진' 앱은 파일 시각이 아니라 EXIF 촬영 시각으로 줄을 세운다. 줄인 사진은 EXIF가 지워져 있어서 새로 넣는다.
     픽셀은 다시 압축하지 않고 EXIF 조각만 끼워 넣는다.
+
+- 만들기 전에 고른 사진끼리 비교해서, 같은 사진이 두 번 들어갔거나 거의 같은 사진(연속 촬영)이 함께
+  들어가 있으면 경고를 띄운다. find_similar.py와 같은 해시 비교다. 경고가 나오면 둘 중 하나를 빼고 다시 만든다.
+- 묶음으로 넣지 않은 낱장이 한 섹션에 2장 넘게 있으면 알려 준다. 낱장은 슬라이드처럼 꼭 크게 보여야 하는
+  사진만 남기고, 나머지는 2~4장씩 묶는다.
 
 Pillow가 필요하다(EXIF와 묶음 이미지를 만들 때 쓴다).
 """
@@ -58,6 +63,50 @@ def find(src: Path, stem: str) -> Path:
     if hits:
         return hits[0]
     raise FileNotFoundError(f"{stem} 사진을 {src}에서 찾지 못했습니다")
+
+
+def dhash(path: Path, size: int = 8) -> int:
+    """find_similar.py와 같은 이미지 해시. 비트 차이가 작을수록 구도가 비슷하다."""
+    with Image.open(path) as im:
+        g = im.convert("L").resize((size + 1, size), Image.LANCZOS)
+    px = list(g.tobytes())
+    bits = 0
+    for r in range(size):
+        for c in range(size):
+            bits = (bits << 1) | (px[r * (size + 1) + c] > px[r * (size + 1) + c + 1])
+    return bits
+
+
+def check_duplicates(src: Path, sections) -> int:
+    """고른 사진 중 같은 사진이나 거의 같은 사진(연속 촬영)이 함께 들어가 있으면 경고하고 그 수를 돌려준다."""
+    where, order = {}, []
+    for sec in sections:
+        for item in sec["photos"]:
+            for x in (item if isinstance(item, list) else [item]):
+                stem = str(x).partition("@")[0]
+                if stem in where:
+                    print(f"  경고: {stem}번이 두 번 들어갔습니다 ({where[stem]}, {sec['name']})", file=sys.stderr)
+                    continue
+                where[stem] = sec["name"]
+                order.append(stem)
+    hashes = {}
+    for stem in order:
+        try:
+            hashes[stem] = dhash(find(src, stem))
+        except Exception:
+            pass  # 영상 등 해시를 못 내는 파일은 건너뛴다
+    stems = [s for s in order if s in hashes]
+    num = {s: int(s) if s.isdigit() else None for s in stems}
+    warned = 0
+    for i, a in enumerate(stems):
+        for b in stems[i + 1:]:
+            d = bin(hashes[a] ^ hashes[b]).count("1")
+            near = num[a] is not None and num[b] is not None and abs(num[a] - num[b]) <= 3
+            if d <= 10 or (near and d <= 18):
+                print(f"  경고: {a}번과 {b}번이 거의 같은 사진 같습니다 ({where[a]} / {where[b]}). 하나만 남기세요",
+                      file=sys.stderr)
+                warned += 1
+    return warned
 
 
 # 묶음 이미지 크기. 원본(긴 변 1280~1600)을 칸에 넣었을 때 거의 줄이지 않는 폭이다.
@@ -88,6 +137,11 @@ def collage(src: Path, items) -> bytes:
         ims.append(ImageOps.exif_transpose(Image.open(find(src, stem))).convert("RGB"))
         anchors.append(float(a) if a else 0.4)
     n, g, W = len(ims), GAP, WIDTH
+    # 3장 묶음은 위 칸이 따로 잘리니 아래 두 장만 방향이 같으면 된다.
+    same = ims[1:] if n == 3 else ims
+    if len({im.height > im.width for im in same}) > 1:
+        names = "+".join(str(x).partition("@")[0] for x in items)
+        print(f"  경고: 묶음 {names}에 가로·세로 사진이 섞여 정사각형 칸으로 많이 잘립니다", file=sys.stderr)
     cw = (W - 3 * g) // 2  # 반 폭 칸
     if n == 2:
         ch = round(cw * ratio(ims))
@@ -145,6 +199,8 @@ def main():
         print(__doc__)
         sys.exit(1)
     src, sections, out = Path(sys.argv[1]), json.loads(Path(sys.argv[2]).read_text(encoding="utf-8")), Path(sys.argv[3])
+    if check_duplicates(src, sections):
+        print("  (거의 같은 사진 경고가 있습니다. 직접 보고 같은 장면이면 하나를 빼세요)", file=sys.stderr)
     total = sum(len(sec["photos"]) for sec in sections)  # 묶음은 한 장으로 센다
     # 갤러리에서 최근 사진 쪽에 모여 보이도록, 지금 시각 바로 전부터 1분 간격으로 찍는다.
     base = time.time() - (total + 1) * 60
@@ -167,6 +223,9 @@ def main():
                 z.writestr(info, with_exif_time(data, base + k * 60))
                 k += 1
             print(f"{folder}: {len(sec['photos'])}장" + (f" (묶음 {groups}장 포함)" if groups else ""))
+            singles = len(sec["photos"]) - groups
+            if singles > 2:
+                print(f"  알림: {folder}에 낱장이 {singles}장입니다. 슬라이드가 아니면 2~4장씩 묶어 주세요", file=sys.stderr)
     print(f"총 {k}장 → {out}")
 
 
